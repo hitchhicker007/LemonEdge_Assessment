@@ -70,7 +70,7 @@ LemonEdgeAssessment/
 
 4. **Run the application**:
    ```bash
-   dotnet run
+   dotnet run --project LemonEdgeAssessment
    ```
 
 ## Sample Output
@@ -85,6 +85,27 @@ Count of valid 6-digit phone numbers: 472
 Count of valid 7-digit phone numbers: 904
 ```
 
+## CLI Usage
+
+The app now supports CLI options to control the computation:
+
+- `-l | --length <n>`: Compute count for a single length n
+- `-m | --min <n>` and `--max <n>`: Compute counts for the range [min, max]
+- `-r | --range <a-b>`: Shorthand range, e.g., `-r 3-7`
+- `-a | --algo <dp|dfs>`: Choose algorithm; `dp` (default) is faster for counting
+
+Examples:
+
+```bash
+dotnet run --project LemonEdgeAssessment -- -l 5
+dotnet run --project LemonEdgeAssessment -- -r 3-7
+dotnet run --project LemonEdgeAssessment -- -m 2 --max 6 -a dfs
+```
+
+Notes:
+- Use `--` to separate `dotnet run` arguments from app arguments.
+- `dp` uses dynamic programming over a precomputed adjacency map for speed.
+
 ## Algorithm Explanation
 
 1. **Initialization**: Create keypad with valid starting positions
@@ -97,6 +118,11 @@ Count of valid 7-digit phone numbers: 904
 ### Time Complexity
 - **Worst Case**: O(8 × 4^n) where n is the phone number length
 - **Space Complexity**: O(n) for recursion stack depth
+
+## Performance Notes
+
+- The original recursive DFS enumerates all combinations; correct but slower for larger n.
+- The new DP method counts paths without enumerating them, typically much faster for larger n.
 
 ## Technical Details
 

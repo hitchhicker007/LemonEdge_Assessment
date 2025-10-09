@@ -99,11 +99,13 @@ namespace RookKeypad
     {
         private Keypad keypad;
         private RookMovement rookMovement;
+        private Dictionary<char, List<char>> adjacency;
 
         public PhoneNumberGenerator(Keypad keypad, RookMovement rookMovement)
         {
             this.keypad = keypad;
             this.rookMovement = rookMovement;
+            BuildAdjacency();
         }
 
         public int CountValidNumbers(int digitLength)
@@ -120,6 +122,69 @@ namespace RookKeypad
             }
 
             return validNumbers.Count;
+        }
+
+        private void BuildAdjacency()
+        {
+            adjacency = new Dictionary<char, List<char>>();
+
+            foreach (char key in "1234567890")
+            {
+                var pos = keypad.GetPosition(key);
+                if (pos.Item1 == -1)
+                    continue;
+
+                var validMoves = rookMovement.GetValidMoves(keypad, pos);
+                List<char> neighbors = new List<char>();
+                foreach (var newPos in validMoves)
+                {
+                    char newKey = keypad.GetKeyAtPosition(newPos);
+                    neighbors.Add(newKey);
+                }
+                adjacency[key] = neighbors;
+            }
+        }
+
+        public long CountValidNumbersDP(int digitLength)
+        {
+            if (digitLength <= 0)
+                return 0;
+
+            Dictionary<char, long> counts = new Dictionary<char, long>();
+            foreach (char key in "1234567890")
+            {
+                counts[key] = keypad.IsValidStartKey(key) ? 1L : 0L;
+            }
+
+            for (int length = 2; length <= digitLength; length++)
+            {
+                Dictionary<char, long> nextCounts = new Dictionary<char, long>();
+                foreach (char key in "1234567890")
+                {
+                    nextCounts[key] = 0L;
+                }
+
+                foreach (char fromKey in "1234567890")
+                {
+                    long ways = counts[fromKey];
+                    if (ways == 0)
+                        continue;
+
+                    foreach (char toKey in adjacency[fromKey])
+                    {
+                        nextCounts[toKey] += ways;
+                    }
+                }
+
+                counts = nextCounts;
+            }
+
+            long total = 0;
+            foreach (var kv in counts)
+            {
+                total += kv.Value;
+            }
+            return total;
         }
 
         private List<string> GenerateNumbers((int, int) pos, string current, int digitLength)
@@ -142,15 +207,73 @@ namespace RookKeypad
 
     class Program
     {
-        static void Main()
+        static void Main(string[] args)
         {
             Keypad keypad = new Keypad();
             RookMovement rookMovement = new RookMovement();
             PhoneNumberGenerator generator = new PhoneNumberGenerator(keypad, rookMovement);
 
-            for (int i = 1; i <= 7; i++)
+            // Defaults
+            int minLen = 1;
+            int maxLen = 7;
+            string algo = "dp"; // dp or dfs
+
+            // Simple CLI parsing
+            for (int i = 0; i < args.Length; i++)
             {
-                Console.WriteLine($"Count of valid {i}-digit phone numbers: {generator.CountValidNumbers(i)}");
+                string arg = args[i].ToLowerInvariant();
+                if ((arg == "-l" || arg == "--length") && i + 1 < args.Length && int.TryParse(args[i + 1], out int len))
+                {
+                    minLen = len;
+                    maxLen = len;
+                    i++;
+                }
+                else if ((arg == "-m" || arg == "--min") && i + 1 < args.Length && int.TryParse(args[i + 1], out int min))
+                {
+                    minLen = min;
+                    i++;
+                }
+                else if ((arg == "--max") && i + 1 < args.Length && int.TryParse(args[i + 1], out int max))
+                {
+                    maxLen = max;
+                    i++;
+                }
+                else if ((arg == "-r" || arg == "--range") && i + 1 < args.Length)
+                {
+                    string[] parts = args[i + 1].Split('-', '–');
+                    if (parts.Length == 2 && int.TryParse(parts[0], out int a) && int.TryParse(parts[1], out int b))
+                    {
+                        minLen = Math.Min(a, b);
+                        maxLen = Math.Max(a, b);
+                    }
+                    i++;
+                }
+                else if ((arg == "-a" || arg == "--algo") && i + 1 < args.Length)
+                {
+                    string value = args[i + 1].ToLowerInvariant();
+                    if (value == "dp" || value == "dfs")
+                        algo = value;
+                    i++;
+                }
+            }
+
+            if (minLen < 1)
+                minLen = 1;
+            if (maxLen < minLen)
+                maxLen = minLen;
+
+            for (int i = minLen; i <= maxLen; i++)
+            {
+                if (algo == "dp")
+                {
+                    long count = generator.CountValidNumbersDP(i);
+                    Console.WriteLine($"Count of valid {i}-digit phone numbers (dp): {count}");
+                }
+                else
+                {
+                    int count = generator.CountValidNumbers(i);
+                    Console.WriteLine($"Count of valid {i}-digit phone numbers (dfs): {count}");
+                }
             }
         }
     }
